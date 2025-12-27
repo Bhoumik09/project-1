@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: connectfour
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts:/docker-entrypoint-initdb.d
+    # === POSTGRES HEALTHCHECK ===
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    restart: always
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_kraft_data:/var/lib/kafka/data
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    # === KAFKA HEALTHCHECK (FIXED) ===
+    # Uses native Kafka tool to verify broker is responding
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  server:
+    build: ./server
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connectfour
+      KAFKA_BROKER: kafka:29092
+      CLIENT_URL: http://localhost:3000
+    depends_on:
+      # === CRITICAL: Server waits for Healthy status ===
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  kafka_kraft_data:
