@@ -89,7 +89,7 @@ export default function Home() {
 
   const handleJoinGame = () => {
     if (username.trim() && socket) {
-      socket.emit("joinGame", { username: username.trim() })
+      socket.emit("joinGame", { username: username.trim().toLowerCase() })
     }
   }
 
