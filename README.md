@@ -1,9 +1,3 @@
-Here is a professional, ready-to-use `README.md` file for your repository. It covers all the steps you mentioned in a clear, organized format.
-
-You can copy-paste this directly into your GitHub repository.
-
----
-
 ```markdown
 # 4 in a Row (Connect Four) - Real-Time Multiplayer Game
 
